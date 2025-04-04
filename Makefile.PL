@@ -9,7 +9,8 @@ use Config;
     my @config;
 
     sub get_lua_config {
-        my %args = map { split /\s*=\s*/ } @ARGV;
+        my %args = map { split /\s*=\s*/, $_, 2 } @ARGV;
+
 
         my $libs = $args{'LIBS'};
         my $inc  = $args{'INC'};
