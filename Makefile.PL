@@ -26,6 +26,8 @@ use Config;
         my @candidates = (
             'lua-config',
             'pkg-config lua',
+            'pkg-config lua5.4',
+            'pkg-config lua-5.4',
             'pkg-config lua5.3',
             'pkg-config lua-5.3',
             'pkg-config lua5.2',
