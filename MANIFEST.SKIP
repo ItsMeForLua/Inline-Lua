@@ -1,0 +1,11 @@
+^\.git
+^\.gitignore$
+^Makefile$
+^MYMETA\.
+^a\.out$
+^check\.c$
+^dist\.ini$
+^weaver\.ini$
+^\.perlcriticrc$
+^blib/
+^Inline-Lua-.*\.tar\.gz$
