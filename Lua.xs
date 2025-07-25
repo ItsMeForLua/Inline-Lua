@@ -630,7 +630,8 @@ call (lua, func, nargs, ...)
 	if (status != 0) {
             SV *error_msg = mess("error: %s\n", lua_tostring(lua, -1));
             lua_pop(lua, 1);
-	    croak_sv(error_msg);
+            /* This is the line we are changing for portability */
+	    croak("%s", SvPV_nolen(error_msg)); 
         }
 
 	/* return args to caller:
