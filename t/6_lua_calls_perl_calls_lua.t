@@ -2,20 +2,23 @@
 
 use strict;
 use warnings;
-
-use Inline 'Lua';
 use Test::More tests => 1;
+use Inline::Lua;
 
-# This sub is called from the Lua code below
+my $lua = Inline::Lua->new(DATA => \*DATA);
+
+# Bind the Perl sub into Lua
+$lua->set('perl_curry', \&curry);
+
+# Call Lua function that uses it
+is($lua->call('lua_curry', \&curry, 6, 7), 42, 'currying works');
+
 sub curry {
     my $arg = shift;
     return sub {
         return $arg * shift;
     };
 }
-
-# The test now calls the Lua function directly
-is(lua_curry(\&curry, 6, 7), 42, 'currying works');
 
 __DATA__
 __Lua__
