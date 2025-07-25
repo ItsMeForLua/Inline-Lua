@@ -1,129 +1,95 @@
-use 5.006;
-use strict;
-use warnings;
+use 5.008008;
 use ExtUtils::MakeMaker;
-use Config;
 
-{
-    my $CC = $Config{cc};
-    my @config;
+# See lib/ExtUtils/MakeMaker.pm for details of how to influence
+# the contents of the Makefile that is written.
 
-    sub get_lua_config {
-        my %args = map { split /\s*=\s*/, $_, 2 } @ARGV;
+# --- Helper function to find Lua ---
+# This is a simple check.
+# Maybe Devel::CheckLib or ExtUtils::PkgConfig in the future.
+sub find_lua {
+    my $inc = '';
+    my $libs = '';
 
-
-        my $libs = $args{'LIBS'};
-        my $inc  = $args{'INC'};
-
-        return ( $inc, $libs ) if defined($inc) && defined($libs);
-
-        if ($^O eq 'MSWin32' && exists $ENV{'LUA_DEV'}) {
-            $inc  = '"' . '-I' . $ENV{LUA_DEV} . '\\include'         . '"';
-            $libs = '"' . '-l' . $ENV{LUA_DEV} . '\\lib\\lua5.1.lib' . '"';
-
-            return ( $inc, $libs );
-        }
-
-        my @candidates = (
-            'lua-config',
-            'pkg-config lua',
-            'pkg-config lua5.4',
-            'pkg-config lua-5.4',
-            'pkg-config lua5.3',
-            'pkg-config lua-5.3',
-            'pkg-config lua5.2',
-            'pkg-config lua-5.2',
-            'pkg-config lua5.1',
-            'pkg-config lua-5.1',
-        );
-
-        foreach my $command (@candidates) {
-            my $status = system "$command >/dev/null 2>/dev/null"; # XXX *nix-specific
-
-            if($status == 0) {
-                my $extra_args = `$command --libs --cflags`;
-                chomp $extra_args;
-                $status = system("$CC check.c $extra_args 2>/dev/null");
-
-                if($status == 0) {
-                    $libs ||= `$command --libs`;
-                    $inc  ||= `$command --cflags`;
-
-                    chomp for $libs, $inc;
-
-                    return ( $inc, $libs );
-                }
-            }
-        }
-
-        return;
-    }
-}
-
-##{ $share_dir_code{preamble} || '' ##}
-
-my %makefile_params;
-
-unless($ENV{'PERL_MM_OPT'} && $ENV{'PERL_MM_OPT'} =~ /(INC|LIBS)(?![a-z])/i) {
-    my ( $inc, $libs ) = get_lua_config();
-
-    if (!$inc && !$libs ) {
-    die <<EOD;
-*******************************************
-Couldn't find a working Lua installation
-on this machine. This is required for
-this module.
-
-To obtain it, go to
-    http://www.lua.org/download.html
-*******************************************
-
-If Makefile.PL failed to find your Lua installation,
-you can specify INC and LIBS flags directly:
-
-  perl Makefile.PL INC=-I/usr/include/lua5.1 LIBS=-llua5.1
-
-(You can also specify INC/LIBS using PERL_MM_OPT)
-EOD
+    # Handle Windows CI environment variables first
+    if ($^O eq 'MSWin32' && $ENV{LUA_INC_PATH} && $ENV{LUA_LIB_PATH}) {
+        $inc = "-I$ENV{LUA_INC_PATH}";
+        $libs = "-L$ENV{LUA_LIB_PATH} -llua53"; # Assuming lua53.lib
+        return ($inc, $libs);
     }
 
-    %makefile_params = (
-        LIBS => [ $libs ],
-        INC  => "-I. $inc",
-    );
+    # Common paths for Unix-like systems
+    my @inc_paths = qw(/usr/include/lua5.3 /usr/local/include/lua5.3 /usr/include /usr/local/include);
+    
+    # Find include path
+    for my $path (@inc_paths) {
+        if (-e "$path/lua.h") {
+            $inc = "-I$path";
+            last;
+        }
+    }
+
+    # NOTE: On most systems, just linking -llua5.3 is enough if it's in the standard path.
+    $libs = '-llua5.3';
+
+    # If lua.h wasn't found, the build can't proceed.
+    die "Could not find lua.h. Please install the Lua development libraries (e.g., liblua5.3-dev on Debian/Ubuntu)" unless $inc;
+
+    return ($inc, $libs);
 }
+
+my ($LUA_INC, $LUA_LIBS) = find_lua();
 
 WriteMakefile(
-    NAME              => 'Inline::Lua',
-##{ $plugin->get_default(qw(ABSTRACT AUTHOR LICENSE VERSION)) ##}
-##{ $plugin->get_prereqs(1) ##}
-    DEFINE            => '',
-    clean             => { FILES => "_Inline a.out" },
+    NAME              => 'Inline-Lua',
+    # This will read the version from the $VERSION variable in the .pm file
+    VERSION_FROM      => 'lib/Inline/Lua.pm', 
+    PREREQ_PM         => {
+        'perl'            => '5.8.8',
+        'Inline'          => '0.80', #
+        'Test::Exception' => 0,
+        'Test::More'      => 0,
+    },
+    # This will read the abstract from the POD in the .pm file
+    ABSTRACT_FROM     => 'lib/Inline/Lua.pm',
+    AUTHOR            => 'Andrew D. France <andrewforlua@gmail.com>',
+    LICENSE           => 'perl_5',
+    
+    # --- XS Configuration ---
+    LIBS              => [$LUA_LIBS],
+    DEFINE            => '', 
+    INC               => $LUA_INC,
+    # This tells MakeMaker to look for *.c and *.xs files
+    OBJECT            => '$(O_FILES)', 
 
-    %makefile_params
+    # --- For CPAN Testers ---
+    test              => { TESTS => 't/*.t' },
+
+    # --- For META files (used by CPAN toolchains) ---
+    META_MERGE => {
+        'meta-spec' => { version => 2 },
+        'resources' => {
+            repository => {
+                type => 'git',
+                url  => 'https://github.com/ItsMeForLua/Inline-Lua.git',
+                web  => 'https://github.com/ItsMeForLua/Inline-Lua',
+            },
+            bugtracker => {
+                web => 'https://github.com/ItsMeForLua/Inline-Lua/issues',
+            },
+        },
+        'x_authority' => 'cpan:MEFORLUA',
+    },
+
+    # --- For `make dist` command ---
+    dist  => { COMPRESS => 'gzip -9f', SUFFIX => 'gz', },
+    clean => { FILES => 'Inline-Lua-*' },
 );
-if  (eval {require ExtUtils::Constant; 1}) {
-  # If you edit these definitions to change the constants used by this module,
-  # you will need to use the generated const-c.inc and const-xs.inc
-  # files to replace their "fallback" counterparts before distributing your
-  # changes.
-  my @names = (qw());
-  ExtUtils::Constant::WriteConstants(
-                                     NAME         => 'Inline::Lua',
-                                     NAMES        => \@names,
-                                     DEFAULT_TYPE => 'IV',
-                                     C_FILE       => 'const-c.inc',
-                                     XS_FILE      => 'const-xs.inc',
-                                  );
 
+sub MY::postamble {
+'
+test-author :
+	$(NOECHO) $(ECHO) "Running author tests..."
+	$(NOECHO) prove -lvr xt/author
+'
 }
-else {
-  use File::Copy;
-  use File::Spec;
-  foreach my $file ('const-c.inc', 'const-xs.inc') {
-    my $fallback = File::Spec->catfile('fallback', $file);
-    copy ($fallback, $file) or die "Can't copy $fallback to $file: $!";
-  }
-}
-
-##{ $share_dir_code{postamble} || '' ##}

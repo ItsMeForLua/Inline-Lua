@@ -13,15 +13,16 @@ require Inline;
 use Fcntl qw/:seek/;
 
 our @ISA = qw(Inline);
+our $VERSION = '0.17';
 
 $Inline::Lua::_undef = undef;
 
 sub register {
     return {
-	language    => 'Lua',
-	aliases	    => [ qw/lua/ ],
-	type	    => 'interpreted',
-	suffix	    => 'luadat',
+    language    => 'Lua',
+    aliases     => [ qw/lua/ ],
+    type        => 'interpreted',
+    suffix      => 'luadat',
     };
 }
 
@@ -29,17 +30,17 @@ sub validate {
     my $o = shift;
     
     while (@_) {
-	my ($key, $val) = splice @_, 0, 2;
-	if (uc $key eq 'UNDEF') {
-	    # Don't think I am stupid because I am going through those hoops to
-	    # pass a reference correctly.  If I don't do it that way, an SvPVIV
-	    # (with the ROK flag set!) is passed for some reason.
-	    Inline::Lua->register_undef(\@$val), next if ref $val eq 'ARRAY';
-	    Inline::Lua->register_undef(\%$val), next if ref $val eq 'HASH';
-	    Inline::Lua->register_undef(\*$val), next if ref $val eq 'GLOB';
-	    Inline::Lua->register_undef(\&$val), next if ref $val eq 'CODE';
-	    Inline::Lua->register_undef($val);
-	}
+    my ($key, $val) = splice @_, 0, 2;
+    if (uc $key eq 'UNDEF') {
+        # Don't think I am stupid because I am going through those hoops to
+        # pass a reference correctly.  If I don't do it that way, an SvPVIV
+        # (with the ROK flag set!) is passed for some reason.
+        Inline::Lua->register_undef(\@$val), next if ref $val eq 'ARRAY';
+        Inline::Lua->register_undef(\%$val), next if ref $val eq 'HASH';
+        Inline::Lua->register_undef(\*$val), next if ref $val eq 'GLOB';
+        Inline::Lua->register_undef(\&$val), next if ref $val eq 'CODE';
+        Inline::Lua->register_undef($val);
+    }
     }
     return;
 }
@@ -51,19 +52,19 @@ sub build {
     
     my @funcs;
     while ($code =~ /((?:local)?\s*function\s*(\w+)\s*\((.*?)\)(.*?)end)/gs) {
-	my $name = $2;
-	
-	my $body = my $proto = $1;
+    my $name = $2;
+    
+    my $body = my $proto = $1;
 
-	# lua_load is not smart enough to compile whole functions 
-	# but only function bodies
-	#$body	=~ s/\s*function\s*$name\s*\(.*?\)\s*//s;
-	#$body	=~ s/\s*end\s*$//g;
-	
-	$proto	=~ s/\s*function\s*$name\s*\((.*?)\).*/$1/s;
-	
-	push @funcs, { $name => { body  => $body,
-				  proto => [ split /\s*,\s*/, $proto ] } };
+    # lua_load is not smart enough to compile whole functions 
+    # but only function bodies
+    #$body  =~ s/\s*function\s*$name\s*\(.*?\)\s*//s;
+    #$body  =~ s/\s*end\s*$//g;
+    
+    $proto  =~ s/\s*function\s*$name\s*\((.*?)\).*/$1/s;
+    
+    push @funcs, { $name => { body  => $body,
+                              proto => [ split /\s*,\s*/, $proto ] } };
     }
     
     my $lua = $o->{ILSM}{lua} = Inline::Lua->interpreter;
@@ -71,10 +72,10 @@ sub build {
     my $path = "$o->{API}{install_lib}/auto/$o->{API}{modpname}";
     my $obj = $o->{API}{location};
     if (! -d $path) {
-	$o->mkpath($path);
-	$lua->compile($o->{API}{code}, "$obj.bc", 1);
+    $o->mkpath($path);
+    $lua->compile($o->{API}{code}, "$obj.bc", 1);
     } 
-     
+   
     my $lua_fh;
     open $lua_fh, '>', $obj or croak "Can't open $obj for output: $!"; ## no critic (InputOutput::RequireBriefOpen)
     print $lua_fh <<EOCODE;
@@ -83,10 +84,10 @@ require Inline::Lua;
 EOCODE
     
     for (@funcs) {
-	my ($name, $func) = each %$_;
-	print $lua_fh <<EOCODE;
+    my ($name, $func) = each %$_;
+    print $lua_fh <<EOCODE;
 sub $name {
-    \$lua->call(\"$name\", @{[ scalar grep $_ ne '...', @{ $func->{proto} } ]}, \@_);
+    \$lua->call("$name", @{[ scalar grep $_ ne '...', @{ $func->{proto} } ]}, \@_);
 }
 EOCODE
     }
@@ -102,21 +103,21 @@ sub load {
     my $o = shift;
     my $obj = $o->{API}{location};
     {
-	local $/;
+    local $/;
         my $bc_fh;
-	open $bc_fh, '<', $obj . '.bc'
-	    or die "Bytecode mysteriously vanished: $!";
-	my $bc = <$bc_fh>;
+    open $bc_fh, '<', $obj . '.bc'
+        or die "Bytecode mysteriously vanished: $!";
+    my $bc = <$bc_fh>;
         close $bc_fh;
-	($o->{ILSM}{lua} = Inline::Lua->interpreter)->compile($bc, "", 0);
+    ($o->{ILSM}{lua} = Inline::Lua->interpreter)->compile($bc, "", 0);
     }
     my $lua_fh;
     open $lua_fh, '<', $obj or croak "Can't open $obj for input: $!"; ## no critic (InputOutput::RequireBriefOpen)
     {
-	local $/;
-	my $lua = $o->{ILSM}{lua};
-	my $code = <$lua_fh>;
-	eval <<EOCODE; ## no critic
+    local $/;
+    my $lua = $o->{ILSM}{lua};
+    my $code = <$lua_fh>;
+    eval <<EOCODE; ## no critic
 my \$lua = Inline::Lua->interpreter;
 $code;
 EOCODE
@@ -124,7 +125,7 @@ EOCODE
     close $lua_fh;
     return;
 }
-  
+ 
 sub create_func_ref {
     my ($lua, $func) = @_;
     return sub { $lua->call($func, -1, @_) };
@@ -143,7 +144,7 @@ sub AUTOLOAD {
     my ($error, $val) = constant($constname);
     if ($error) { croak $error; }
     {
-	no strict 'refs'; ## no critic (TestingAndDebugging::ProhibitNoStrict)
+    no strict 'refs'; ## no critic (TestingAndDebugging::ProhibitNoStrict)
         *$AUTOLOAD = sub { $val };
     }
     goto &$AUTOLOAD;
@@ -159,12 +160,12 @@ use warnings;
 use strict;
 
 use overload
-	fallback	=> undef,
-	'0+'		=> \&tonumber,
-	'+'		=> \&add,
-	'-'		=> \&subtract,
-	'<=>'		=> \&compare,
-	'cmp'		=> \&compare;
+    fallback    => undef,
+    '0+'        => \&tonumber,
+    '+'   => \&add,
+    '-'   => \&subtract,
+    '<=>'       => \&compare,
+    'cmp'       => \&compare;
 
 
 sub TRUE  { return __PACKAGE__->new(1) }
@@ -181,35 +182,35 @@ sub new {
 
 
 sub add {
-	my $self	= shift;
-	my $rop		= shift;
+    my $self    = shift;
+    my $rop     = shift;
 
-	return int($self) + $rop;
+    return int($self) + $rop;
 } # add
 
 
 sub subtract {
-	my $self	= shift;
-	my $rop		= shift;
-	my $swap	= shift;
+    my $self    = shift;
+    my $rop     = shift;
+    my $swap    = shift;
 
-	return ($swap)? $rop - int($self) : int($self) - $rop;
+    return ($swap)? $rop - int($self) : int($self) - $rop;
 } # subtract
 
 
 sub compare {
-	my $self	= shift;
-	my $rop		= shift;
-	my $swap	= shift;
+    my $self    = shift;
+    my $rop     = shift;
+    my $swap    = shift;
 
-	return ($swap)? ($rop <=> int($self)) : (int($self) <=> $rop);
+    return ($swap)? ($rop <=> int($self)) : (int($self) <=> $rop);
 } # compare
 
 
 sub tonumber {
-	my $self	= shift;
+    my $self    = shift;
 
-	return (${$self})? 1 : 0;
+    return (${$self})? 1 : 0;
 } # tonumber
 
 
@@ -226,7 +227,7 @@ __END__
     __END__
     __Lua__
     function answer (a, b)
-	return a*b 
+    return a*b 
     end
 
 =head1 DESCRIPTION
@@ -252,7 +253,7 @@ Heredocs may come in handy for that:
 
     use Inline Lua => <<EOLUA;
     function pow (a, b)
-	return a^b
+    return a^b
     end
     EOLUA
 
@@ -267,7 +268,7 @@ Or append it to your script after the C<__END__> token:
     __END__
     __Lua__
     function pow (a, b)
-	return a^b 
+    return a^b 
     end
 
 All of those are equivalent.
@@ -325,7 +326,7 @@ is not a very deep concept:
 
     use Inline Lua => <<EOLUA;
     function luaprint (a)
-	io.write(a)
+    io.write(a)
     end
     EOLUA
     
@@ -394,7 +395,7 @@ function references as arguments and the Lua code will do the right thing:
 
     sub dump {
         my ($key, $val) = @_;
-	print "$key => $val\n";
+    print "$key => $val\n";
     }
     
     table_foreach( \&dump, { key1 => 1, key2 => 2 } );
@@ -405,18 +406,18 @@ is triggered by Lua and its result is printed:
 
     use Inline Lua => <<EOLUA;
     function lua_curry (f, a, b) 
-	local g = f(a)
-	io.write( g(b) )
-	-- or simply: io.write( f(a)(b) )
+    local g = f(a)
+    io.write( g(b) )
+    -- or simply: io.write( f(a)(b) )
     end
     EOLUA
 
     sub curry {
-	my $arg = shift;
-	return sub { return $arg * shift };
+    my $arg = shift;
+    return sub { return $arg * shift };
     }
 
-    lua_curry( \&curry, 6, 7);	# prints 42
+    lua_curry( \&curry, 6, 7);  # prints 42
 
 It should be obvious that you are also allowed to pass references to anonymous functions, so
 
@@ -432,9 +433,9 @@ function, Inline::Lua will turn it into the thingy that Lua can deal with:
 
     use Inline Lua => <<EOLUA;
     function dump_fh (fh)
-	for line in fh:lines() do
-	    io.write(line, "\n")
-	end
+    for line in fh:lines() do
+        io.write(line, "\n")
+    end
     end
     EOLUA
 
@@ -460,10 +461,10 @@ Those can be translated 1:1 into Perl:
 
     use Inline Lua => <<EOLUA;
     function return_basic ()
-	local num = 42
-	local str = "twenty-four"
-	local boo = true
-	return num, str, boo, nil
+    local num = 42
+    local str = "twenty-four"
+    local boo = true
+    return num, str, boo, nil
     end
     EOLUA
 
@@ -562,13 +563,13 @@ Just as you can pass filehandles to Lua functions, you may also return them:
 
     use Inline Lua => <<EOLUA;
     function open_file (filename)
-	return io.open(filename, "r")
+    return io.open(filename, "r")
     end
     EOLUA
 
     my $fh = open_file(".bashrc");
     while (<$fh>) {
-	...
+    ...
     }
 
 It's a fatal error if your Lua code tries to return a closed filehandle.
@@ -578,20 +579,20 @@ It's a fatal error if your Lua code tries to return a closed filehandle.
 You can change C<undef>'s default conversion so that Inline::Lua wont transform it to C<nil>
 when passing the value to Lua:
 
-    use Inline Lua	=> 'DATA',	# source code after the __END__ token
-	       Undef	=> 0;
+    use Inline Lua  => 'DATA',  # source code after the __END__ token
+               Undef    => 0;
 
 With the above, every C<undef> value is turned into a Lua number with the value 0. Likewise
 
     use Inline Lua      => 'DATA', 
-	       Undef	=> '';
+               Undef    => '';
 
 This will turn C<undef> into the empty string. Any valid Perl scalar can be
 specified for I<Undef>, this includes references to hashes, arrays, functions
 etc. A basic example:
 
     use Inline Lua   => 'DATA',
-	       Undef => 'Undefined value';
+               Undef => 'Undefined value';
     
     print_values(1, 2, 3, undef, 4, 5);
 
@@ -625,11 +626,11 @@ you supply less arguments than mentioned in the prototype:
 
     use Inline Lua => <<EOLUA;
     function foo (a, b, c, ...)
-	print(a, b, c)
+    print(a, b, c)
     end
     EOLUA
 
-    foo(1);	# actually: foo(1, undef, undef)
+    foo(1); # actually: foo(1, undef, undef)
 
 Those padded C<undef>s are also handled accordingly to the value of I<Undef>.
 Also note that C<...> in a prototype is never padded (as you can see in the above).
@@ -676,8 +677,8 @@ something like this might B<not> do what you expect:
     b = 2
     
     function luafunc ()
-	a = a + 1
-	b = b + 1
+    a = a + 1
+    b = b + 1
     end
 
     return a, b
