@@ -221,43 +221,42 @@ void
 push_val (lua_State *L, SV *val) {
 
     if (is_lua_nil(val)) {
-	lua_pushnil(L);
-	return;
+        lua_pushnil(L);
+        return;
     }
 
     if (!val || val == &PL_sv_undef || !SvOK(val)) {
-	if (!UNDEF || UNDEF == &PL_sv_undef || !SvOK(UNDEF))
-	    lua_pushnil(L);
-	else
-	    /* otherwise we can safely call push_val again
-	     * because Inline::Lua::_undef is defined */
-	    push_val(L, UNDEF);
-	return;
+        if (!UNDEF || UNDEF == &PL_sv_undef || !SvOK(UNDEF))
+            lua_pushnil(L);
+        else
+            push_val(L, UNDEF);
+        return;
+    }
+
+    if (SvROK(val)) {
+        push_ref(L, val);
+        return;
     }
 
     switch (SvTYPE(val)) {
-	case SVt_IV:
-            if(SvROK(val)) {
-                push_ref(L, val);
-            } else {
+        case SVt_IV:
 #if LUA_VERSION_NUM < 503
-                lua_pushnumber(L, (lua_Number)SvIV(val));
+            lua_pushnumber(L, (lua_Number)SvIV(val));
 #else
-                lua_pushinteger(L, (lua_Integer)SvIV(val));
+            lua_pushinteger(L, (lua_Integer)SvIV(val));
 #endif
+            return;
+        case SVt_NV:
+            lua_pushnumber(L, (lua_Number)SvNV(val));
+            return;
+        case SVt_PV: case SVt_PVIV:
+        case SVt_PVNV: case SVt_PVMG:
+            {
+                STRLEN n_a;
+                char *cval = SvPV(val, n_a);
+                lua_pushlstring(L, cval, n_a);
+                return;
             }
-	    return;
-	case SVt_NV:
-	    lua_pushnumber(L, (lua_Number)SvNV(val));
-	    return;
-	case SVt_PV: case SVt_PVIV:
-	case SVt_PVNV: case SVt_PVMG:
-	    {
-		STRLEN n_a;
-		char *cval = SvPV(val, n_a);
-		lua_pushlstring(L, cval, n_a);
-		return;
-	    }
     }
 }
 
