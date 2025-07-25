@@ -68,7 +68,7 @@ jobs:
           fi
 
       - name: Install Perl Dependencies
-        run: cpanm --installdeps .
+        run: cpanm --notest Inline Test::Exception ExtUtils::Constant
 
       - name: Build and Test
         run: |
