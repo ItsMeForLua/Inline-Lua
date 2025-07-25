@@ -1,7 +1,9 @@
 Revision history for Perl extension Inline::Lua.
 
 {{$NEXT}}
-
+    - Add GitHub Actions CI for automated testing.
+    - Add xt/ author tests for POD and code quality.
+    - Modernize development environment setup.
 0.17 October 25 2020
         - Fix memory freeing problem for booleans (#31)
 
