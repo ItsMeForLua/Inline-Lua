@@ -54,7 +54,7 @@ jobs:
             sudo apt-get install -y liblua5.3-dev
           elif [ "$RUNNER_OS" == "macOS" ]; then
             brew install lua
-          elif [ "$RUNNER_OS" == "Windows" ];then
+          elif [ "$RUNNER_OS" == "Windows" ]; then
             scoop install lua
             echo "LUA_LIB_PATH=C:\Users\runneradmin\scoop\apps\lua\current\lib" >> $env:GITHUB_ENV
             echo "LUA_INC_PATH=C:\Users\runneradmin\scoop\apps\lua\current\include" >> $env:GITHUB_ENV
@@ -64,7 +64,15 @@ jobs:
 
       - name: Install Perl Dependencies
         run: |
-          cpanm --notest Inline Test::Exception
+          cpanm --notest Inline Test::Exception ExtUtils::MakeMaker
+
+      - name: Clean build environment
+        run: |
+          # Remove any cached Inline files that might cause version mismatches
+          rm -rf _Inline blib
+          # Clean any previous build artifacts
+          if [ -f Makefile ]; then make clean || true; fi
+          rm -f Makefile.old
 
       - name: Build and Test
         run: |
@@ -74,7 +82,10 @@ jobs:
             perl Makefile.PL
           fi
           make
+          # Clean Inline cache before testing to prevent version mismatch
+          rm -rf _Inline
           make test TEST_VERBOSE=1
+        shell: bash
 
       - name: Run Author/Extended Tests
         if: matrix.perl >= 5.22 # NOTE: Author tests often use modern syntax
