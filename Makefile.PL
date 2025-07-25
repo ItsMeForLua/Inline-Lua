@@ -75,7 +75,7 @@ WriteConstants(
 );
 
 WriteMakefile(
-    NAME              => 'Inline-Lua',
+    NAME              => 'Inline::Lua',
     VERSION_FROM      => 'lib/Inline/Lua.pm', 
     PREREQ_PM         => {
         'perl'              => '5.8.8',
