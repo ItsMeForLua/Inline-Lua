@@ -65,44 +65,22 @@ jobs:
             brew install lua
           elif [ "$RUNNER_OS" == "Windows" ]; then
             scoop install lua
+            # Set ENV for Makefile.PL to find Lua
             echo "LUA_LIB_PATH=C:\Users\runneradmin\scoop\apps\lua\current\lib" >> $env:GITHUB_ENV
             echo "LUA_INC_PATH=C:\Users\runneradmin\scoop\apps\lua\current\include" >> $env:GITHUB_ENV
-            echo "PATH=C:\Users\runneradmin\scoop\apps\lua\current\bin;${env:PATH}" >> $env:GITHUB_ENV
           fi
 
       - name: Install Perl Dependencies
-        run: cpanm --notest Inline Test::Exception
+        run: cpanm --installdeps .
 
       - name: Build and Test
-        shell: bash
         run: |
-          # Define the version from GitHub to ensure it's set correctly.
-          MODULE_VERSION=0.17
-
-          # Manually set the version in the .pm file to avoid DynaLoader mismatch
-          echo "our \$VERSION = '$MODULE_VERSION';" >> lib/Inline/Lua.pm
-
-          # Build the Makefile, explicitly passing the VERSION
-          if [ "$RUNNER_OS" == "Windows" ]; then
-            perl Makefile.PL VERSION=$MODULE_VERSION INC="-I$env:LUA_INC_PATH" LIBS="-L$env:LUA_LIB_PATH -llua53"
-          else
-            perl Makefile.PL VERSION=$MODULE_VERSION
-          fi
-          
-          # Compile the module
+          perl Makefile.PL
           make
-          
-          # IMPORTANT: Clean the Inline cache before testing to prevent version mismatch errors
-          rm -rf _Inline
-          
-          # Run the tests
-          make test TEST_VERBOSE=1
+          make test
 
       - name: Run Author/Extended Tests
         if: matrix.perl >= 5.22 # Author tests often use modern syntax
-        continue-on-error: true
         run: |
-          if [ -d "xt" ]; then
-            cpanm --notest Test::Perl::Critic Test::Pod Test::Pod::Coverage
-            prove -lv -r xt
-          fi
+          cpanm --notest Test::Perl::Critic Test::Pod Test::Pod::Coverage
+          make test-author
