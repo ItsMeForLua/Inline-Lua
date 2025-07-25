@@ -1,27 +1,26 @@
 use 5.008008;
 use ExtUtils::MakeMaker;
+use ExtUtils::Constant qw(WriteConstants);
 
-# See lib/ExtUtils/MakeMaker.pm for details of how to influence
-# the contents of the Makefile that is written.
-
-# --- Helper function to find Lua ---
-# This is a simple check.
-# Maybe Devel::CheckLib or ExtUtils::PkgConfig in the future.
 sub find_lua {
     my $inc = '';
     my $libs = '';
 
-    # Handle Windows CI environment variables first
     if ($^O eq 'MSWin32' && $ENV{LUA_INC_PATH} && $ENV{LUA_LIB_PATH}) {
         $inc = "-I$ENV{LUA_INC_PATH}";
-        $libs = "-L$ENV{LUA_LIB_PATH} -llua53"; # Assuming lua53.lib
+        $libs = "-L$ENV{LUA_LIB_PATH} -llua53";
         return ($inc, $libs);
     }
 
-    # Common paths for Unix-like systems
-    my @inc_paths = qw(/usr/include/lua5.3 /usr/local/include/lua5.3 /usr/include /usr/local/include);
+    my @inc_paths = qw(
+        /usr/include/lua5.3 
+        /usr/local/include/lua5.3 
+        /opt/local/include/lua5.3
+        /usr/include 
+        /usr/local/include
+        /opt/local/include
+    );
     
-    # Find include path
     for my $path (@inc_paths) {
         if (-e "$path/lua.h") {
             $inc = "-I$path";
@@ -29,10 +28,8 @@ sub find_lua {
         }
     }
 
-    # NOTE: On most systems, just linking -llua5.3 is enough if it's in the standard path.
     $libs = '-llua5.3';
 
-    # If lua.h wasn't found, the build can't proceed.
     die "Could not find lua.h. Please install the Lua development libraries (e.g., liblua5.3-dev on Debian/Ubuntu)" unless $inc;
 
     return ($inc, $libs);
@@ -40,32 +37,47 @@ sub find_lua {
 
 my ($LUA_INC, $LUA_LIBS) = find_lua();
 
+WriteConstants(
+    NAME         => 'Inline::Lua',
+    NAMES        => [
+        { name => 'LUA_OK',         macro => 1 },
+        { name => 'LUA_YIELD',      macro => 1 },
+        { name => 'LUA_ERRRUN',     macro => 1 },
+        { name => 'LUA_ERRSYNTAX',  macro => 1 },
+        { name => 'LUA_ERRMEM',     macro => 1 },
+        { name => 'LUA_ERRGCMM',    macro => 1 },
+        { name => 'LUA_ERRERR',     macro => 1 },
+        'LUA_TNONE', 'LUA_TNIL', 'LUA_TBOOLEAN', 'LUA_TLIGHTUSERDATA', 
+        'LUA_TNUMBER', 'LUA_TSTRING', 'LUA_TTABLE', 'LUA_TFUNCTION', 
+        'LUA_TUSERDATA', 'LUA_TTHREAD',
+        'LUA_REGISTRYINDEX', 'LUA_MULTRET'
+    ],
+    DEFAULT_TYPE => 'IV',
+    C_FILE       => 'const-c.inc',
+    XS_FILE      => 'const-xs.inc',
+);
+
 WriteMakefile(
     NAME              => 'Inline-Lua',
-    # This will read the version from the $VERSION variable in the .pm file
     VERSION_FROM      => 'lib/Inline/Lua.pm', 
     PREREQ_PM         => {
-        'perl'            => '5.8.8',
-        'Inline'          => '0.80', #
-        'Test::Exception' => 0,
-        'Test::More'      => 0,
+        'perl'              => '5.8.8',
+        'Inline'            => '0.80',
+        'Test::Exception'   => 0,
+        'Test::More'        => 0,
+        'ExtUtils::Constant'=> 0,
     },
-    # This will read the abstract from the POD in the .pm file
     ABSTRACT_FROM     => 'lib/Inline/Lua.pm',
     AUTHOR            => 'Andrew D. France <andrewforlua@gmail.com>',
     LICENSE           => 'perl_5',
     
-    # --- XS Configuration ---
     LIBS              => [$LUA_LIBS],
     DEFINE            => '', 
-    INC               => $LUA_INC,
-    # This tells MakeMaker to look for *.c and *.xs files
+    INC               => "-I. $LUA_INC",
     OBJECT            => '$(O_FILES)', 
 
-    # --- For CPAN Testers ---
     test              => { TESTS => 't/*.t' },
 
-    # --- For META files (used by CPAN toolchains) ---
     META_MERGE => {
         'meta-spec' => { version => 2 },
         'resources' => {
@@ -81,9 +93,8 @@ WriteMakefile(
         'x_authority' => 'cpan:MEFORLUA',
     },
 
-    # --- For `make dist` command ---
     dist  => { COMPRESS => 'gzip -9f', SUFFIX => 'gz', },
-    clean => { FILES => 'Inline-Lua-*' },
+    clean => { FILES => 'Inline-Lua-* const-c.inc const-xs.inc' },
 );
 
 sub MY::postamble {
