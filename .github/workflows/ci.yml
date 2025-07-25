@@ -1,7 +1,6 @@
 # .github/workflows/ci.yml
 name: CI/CD for Inline-Lua
-# IMPORTANT:
-# Sets default permissions to be read-only for security
+
 permissions:
   contents: read
 
@@ -55,9 +54,9 @@ jobs:
         uses: shogo82148/actions-setup-perl@v1
         with:
           perl-version: ${{ matrix.perl }}
-          # The action should automatically select the correct distribution for each OS.
 
       - name: Install system dependencies (Lua)
+        shell: bash
         run: |
           if [ "$RUNNER_OS" == "Linux" ]; then
             sudo apt-get update
@@ -70,39 +69,34 @@ jobs:
             echo "LUA_INC_PATH=C:\Users\runneradmin\scoop\apps\lua\current\include" >> $env:GITHUB_ENV
             echo "PATH=C:\Users\runneradmin\scoop\apps\lua\current\bin;${env:PATH}" >> $env:GITHUB_ENV
           fi
-        shell: bash
 
       - name: Install Perl Dependencies
-        run: |
-          cpanm --notest Inline Test::Exception ExtUtils::MakeMaker
-
-      - name: Clean build environment
-        run: |
-          # Remove any cached Inline files that might cause version mismatches
-          rm -rf _Inline blib
-          # Clean any previous build artifacts
-          if [ -f Makefile ]; then make clean || true; fi
-          rm -f Makefile.old
+        run: cpanm --notest Inline Test::Exception
 
       - name: Build and Test
+        shell: bash
         run: |
+          # Build the Makefile
           if [ "$RUNNER_OS" == "Windows" ]; then
             perl Makefile.PL INC="-I$env:LUA_INC_PATH" LIBS="-L$env:LUA_LIB_PATH -llua53"
           else
             perl Makefile.PL
           fi
+          
+          # Compile the module
           make
-          # Clean Inline cache before testing to prevent version mismatch
+          
+          # IMPORTANT: Clean the Inline cache before testing to prevent version mismatch errors
           rm -rf _Inline
-          # Run tests with detailed output, but don't fail CI on test failures
-          make test TEST_VERBOSE=1 || echo "Some tests failed, but continuing..."
-        shell: bash
+          
+          # Run the tests
+          make test TEST_VERBOSE=1
 
       - name: Run Author/Extended Tests
-        if: matrix.perl >= 5.22 # NOTE: Author tests often use modern syntax
+        if: matrix.perl >= 5.22 # Author tests often use modern syntax
         continue-on-error: true
         run: |
           if [ -d "xt" ]; then
             cpanm --notest Test::Perl::Critic Test::Pod Test::Pod::Coverage
-            prove -lv -r xt || echo "Author tests completed with some failures"
+            prove -lv -r xt
           fi
