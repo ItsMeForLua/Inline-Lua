@@ -8,11 +8,11 @@
 
 #include "ppport.h"
 
-#include "const-c.inc"
-
 #include <lua.h>
 #include <lualib.h>
 #include <lauxlib.h>
+
+#include "const-c.inc"
 
 /* Support Lua 5.2 */
 #if LUA_VERSION_NUM >= 502
