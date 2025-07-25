@@ -80,7 +80,7 @@ jobs:
           MODULE_VERSION=0.17
 
           # Manually set the version in the .pm file to avoid DynaLoader mismatch
-          perl -i -pe "s/^(our .VERSION = '.+?';)/our \$VERSION = '$MODULE_VERSION';/ or \$_ .= \"\\nour \\\$VERSION = '$MODULE_VERSION';\" if eof" lib/Inline/Lua.pm
+          echo "our \$VERSION = '$MODULE_VERSION';" >> lib/Inline/Lua.pm
 
           # Build the Makefile, explicitly passing the VERSION
           if [ "$RUNNER_OS" == "Windows" ]; then
