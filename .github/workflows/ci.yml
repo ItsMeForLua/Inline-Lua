@@ -1,6 +1,5 @@
 # .github/workflows/ci.yml
 name: CI/CD for Inline-Lua
-
 # IMPORTANT:
 # Sets default permissions to be read-only for security
 permissions:
@@ -31,7 +30,6 @@ jobs:
           - os: ubuntu-latest
             perl: devel
         exclude:
-          # Older Perls can be problematic on Windows, so, we'll be selective
           - os: windows-latest
             perl: 5.8
           - os: windows-latest
@@ -47,7 +45,7 @@ jobs:
         uses: shogo82148/actions-setup-perl@v1
         with:
           perl-version: ${{ matrix.perl }}
-          distribution: strawberry
+          # The action should automatically select the correct distribution for each OS.
 
       - name: Install system dependencies (Lua)
         run: |
