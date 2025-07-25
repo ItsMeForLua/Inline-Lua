@@ -35,9 +35,6 @@ jobs:
           - '5.34'
           - '5.36'
           - '5.38'
-        include:
-          - os: ubuntu-latest
-            perl: devel
         exclude:
           - os: windows-latest
             perl: '5.8'
