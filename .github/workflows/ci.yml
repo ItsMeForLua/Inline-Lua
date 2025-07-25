@@ -76,11 +76,14 @@ jobs:
       - name: Build and Test
         shell: bash
         run: |
-          # Build the Makefile
+          # Define the version from GitHub to ensure it's set correctly.
+          MODULE_VERSION=0.17
+
+          # Build the Makefile, explicitly passing the VERSION
           if [ "$RUNNER_OS" == "Windows" ]; then
-            perl Makefile.PL INC="-I$env:LUA_INC_PATH" LIBS="-L$env:LUA_LIB_PATH -llua53"
+            perl Makefile.PL VERSION=$MODULE_VERSION INC="-I$env:LUA_INC_PATH" LIBS="-L$env:LUA_LIB_PATH -llua53"
           else
-            perl Makefile.PL
+            perl Makefile.PL VERSION=$MODULE_VERSION
           fi
           
           # Compile the module
